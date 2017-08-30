@@ -1,0 +1,38 @@
+{
+  "name": "galahad/dusk-browserstack",
+  "description": "Easily run Laravel Dusk tests on BrowserStack.",
+  "keywords": [
+    "laravel",
+    "testing",
+    "webdriver",
+    "dusk",
+    "browserstack"
+  ],
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Chris Morrell"
+    }
+  ],
+  "require": {
+    "php": ">=7.0",
+    "facebook/webdriver": "~1.0",
+    "illuminate/support": "~5.5",
+    "browserstack/browserstack-local": "~1.1.0"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^6.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Galahad\\BrowserStack\\": "src/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+      ]
+    }
+  },
+  "minimum-stability": "dev"
+}
