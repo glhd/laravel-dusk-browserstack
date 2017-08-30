@@ -8,11 +8,13 @@ namespace Galahad\BrowserStack;
 use BrowserStack\Local;
 use Facebook\WebDriver\Remote\DesiredCapabilities;
 use Facebook\WebDriver\Remote\RemoteWebDriver;
+use Illuminate\Contracts\Container\Container;
 use RuntimeException;
 
 /**
  * Run BrowserStack from your tests.
  *
+ * @property-read Container $app
  * @package Galahad\BrowserStack
  */
 trait SupportsBrowserStack
@@ -27,14 +29,13 @@ trait SupportsBrowserStack
 	/**
 	 * Start the BrowserStack process.
 	 *
-	 * @throws RuntimeException if the driver file path doesn't exist.
-	 * @return void
+	 * @param string|null $key
 	 */
-	public static function startBrowserStack()
+	public static function startBrowserStack(string $key = null)
 	{
 		static::$browserStackProcess = new Local();
 		
-		static::startBrowserStackProcess(static::$browserStackProcess);
+		static::startBrowserStackProcess(static::$browserStackProcess, $key);
 		
 		static::afterClass(function() {
 			static::stopBrowserStack();
@@ -56,13 +57,15 @@ trait SupportsBrowserStack
 	/**
 	 * Create the BrowserStack WebDriver instance.
 	 *
+	 * @param array $caps
+	 * @param string|null $url
 	 * @return RemoteWebDriver
 	 */
-	public static function createBrowserStackDriver() : RemoteWebDriver
+	public static function createBrowserStackDriver(array $caps = [], string $url = null) : RemoteWebDriver
 	{
 		return RemoteWebDriver::create(
-			static::browserStackSeleniumUrl(),
-			static::browserStackSeleniumCaps()
+			$url ?? static::browserStackSeleniumUrl(),
+			static::browserStackSeleniumCaps($caps)
 		);
 	}
 	
@@ -73,8 +76,8 @@ trait SupportsBrowserStack
 	 */
 	protected static function browserStackSeleniumUrl() : string
 	{
-		$username = config('services.browserstack.username');
-		$key = config('services.browserstack.key');
+		$username = env('BROWSERSTACK_USERNAME'); // FIXME
+		$key = env('BROWSERSTACK_ACCESS_KEY');
 		
 		return "https://{$username}:{$key}@hub-cloud.browserstack.com/wd/hub";
 	}
@@ -82,28 +85,35 @@ trait SupportsBrowserStack
 	/**
 	 * Build the BrowserStack Selenium capabilities.
 	 *
+	 * @param array|null $caps
 	 * @return array
 	 */
-	protected static function browserStackSeleniumCaps() : array
+	protected static function browserStackSeleniumCaps(array $caps = null) : array
 	{
 		$defaults = [
 			'browserstack.local' => 'true',
 		];
 		
-		return array_merge($defaults, DesiredCapabilities::chrome(), static::$browserStackCapabilities ?? []);
+		return array_merge(
+			$defaults,
+			DesiredCapabilities::chrome(),
+			static::$browserStackCapabilities ?? [],
+			$caps ?? []
+		);
 	}
 	
 	/**
 	 * Build the process to run the BrowserStack.
 	 *
 	 * @param Local $process
+	 * @param string|null $key
 	 */
-	protected static function startBrowserStackProcess(Local $process)
+	protected static function startBrowserStackProcess(Local $process, string $key = null)
 	{
-		$key = config('services.browserstack.key', env('BROWSERSTACK_ACCESS_KEY'));
+		$key = $key ?? env('BROWSERSTACK_ACCESS_KEY');
 		
-		if (!$key) {
-			throw new RuntimeException('services.browserstack.key or BROWSERSTACK_ACCESS_KEY must be configured.');
+		if (empty($key)) {
+			throw new RuntimeException('BROWSERSTACK_ACCESS_KEY must be configured.');
 		}
 		
 		$process->start([
