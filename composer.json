@@ -1,6 +1,6 @@
 {
   "name": "galahad/dusk-browserstack",
-  "version": "0.1",
+  "version": "1.0.0",
   "description": "Easily run Laravel Dusk tests on BrowserStack.",
   "keywords": [
     "laravel",
