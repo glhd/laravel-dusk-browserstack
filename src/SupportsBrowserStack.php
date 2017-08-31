@@ -51,6 +51,13 @@ trait SupportsBrowserStack
 	protected $browserStackCapabilities = [];
 	
 	/**
+	 * Whether the services.browserstack config settings were loaded yet.
+	 *
+	 * @var bool
+	 */
+	protected $browserStackLoadedConfig = false;
+	
+	/**
 	 * Stop the BrowserStack process.
 	 *
 	 * @return void
@@ -70,6 +77,8 @@ trait SupportsBrowserStack
 	 */
 	public function createBrowserStackDriver(array $config = null) : RemoteWebDriver
 	{
+		$this->loadApplicationConfig();
+		
 		if (null !== $config) {
 			$this->setBrowserStackConfig($config);
 		}
@@ -160,6 +169,21 @@ trait SupportsBrowserStack
 		$this->browserStackCapabilities = $capabilities;
 		
 		return $this;
+	}
+	
+	/**
+	 * Load configuration from application's config/ dir one time.
+	 */
+	protected function loadApplicationConfig()
+	{
+		if ($this->browserStackLoadedConfig) {
+			return;
+		}
+		
+		$this->browserStackLoadedConfig = true;
+		
+		$config = $this->app['config']->get('services.browserstack', []);
+		$this->setBrowserStackConfig($config);
 	}
 	
 	/**
