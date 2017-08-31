@@ -56,6 +56,10 @@ on different browsers/platforms/etc.
 
 ## Changelog
 
+## 1.1.0
+
+- Silently skips running BrowserStack Local if something is listening on port 45691
+
 ### 1.0.2
 
 - Better default BrowserStack logfile

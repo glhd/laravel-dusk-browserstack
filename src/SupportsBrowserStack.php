@@ -58,6 +58,13 @@ trait SupportsBrowserStack
 	protected $browserStackLoadedConfig = false;
 	
 	/**
+	 * Whether BrowserStack Local is running in a separate process.
+	 *
+	 * @var bool
+	 */
+	protected $browserStackRunningExternally;
+	
+	/**
 	 * Stop the BrowserStack process.
 	 *
 	 * @return void
@@ -191,6 +198,10 @@ trait SupportsBrowserStack
 	 */
 	protected function startBrowserStack()
 	{
+		if ($this->isBrowserStackRunning()) {
+			return;
+		}
+		
 		if (!static::$browserStackProcess) {
 			static::$browserStackProcess = new Local();
 		}
@@ -221,6 +232,22 @@ trait SupportsBrowserStack
 		}
 		
 		static::$browserStackProcess->start($config);
+	}
+	
+	/**
+	 * Check if a BrowserStack Local is running in a separate process.
+	 */
+	protected function isBrowserStackRunning()
+	{
+		if (null === $this->browserStackRunningExternally) {
+			$this->browserStackRunningExternally = false;
+			if ($conn = @stream_socket_client('tcp://127.0.0.1:45691')) {
+				$this->browserStackRunningExternally = true;
+				fclose($conn);
+			}
+		}
+		
+		return $this->browserStackRunningExternally;
 	}
 	
 	/**
