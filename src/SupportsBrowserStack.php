@@ -8,14 +8,10 @@ namespace Galahad\BrowserStack;
 use BrowserStack\Local;
 use Facebook\WebDriver\Remote\DesiredCapabilities;
 use Facebook\WebDriver\Remote\RemoteWebDriver;
-use Illuminate\Contracts\Container\Container;
 use RuntimeException;
 
 /**
  * Run BrowserStack from your tests.
- *
- * @property-read Container $app
- * @package Galahad\BrowserStack
  */
 trait SupportsBrowserStack
 {
@@ -27,20 +23,32 @@ trait SupportsBrowserStack
 	protected static $browserStackProcess;
 	
 	/**
-	 * Start the BrowserStack process.
+	 * The BrowserStack username.
 	 *
-	 * @param string|null $key
+	 * @var string
 	 */
-	public static function startBrowserStack(string $key = null)
-	{
-		static::$browserStackProcess = new Local();
-		
-		static::startBrowserStackProcess(static::$browserStackProcess, $key);
-		
-		static::afterClass(function() {
-			static::stopBrowserStack();
-		});
-	}
+	protected $browserStackUsername;
+	
+	/**
+	 * The API key for BrowserStack.
+	 *
+	 * @var string
+	 */
+	protected $browserStackKey;
+	
+	/**
+	 * Extra configuration for BrowserStack local.
+	 *
+	 * @var array
+	 */
+	protected $browserStackLocalConfig = [];
+	
+	/**
+	 * Capabilities requested for tests.
+	 *
+	 * @var array
+	 */
+	protected $browserStackCapabilities = [];
 	
 	/**
 	 * Stop the BrowserStack process.
@@ -57,16 +65,137 @@ trait SupportsBrowserStack
 	/**
 	 * Create the BrowserStack WebDriver instance.
 	 *
-	 * @param array $caps
-	 * @param string|null $url
+	 * @param array $config
 	 * @return RemoteWebDriver
 	 */
-	public static function createBrowserStackDriver(array $caps = [], string $url = null) : RemoteWebDriver
+	public function createBrowserStackDriver(array $config = null) : RemoteWebDriver
 	{
+		if (null !== $config) {
+			$this->setBrowserStackConfig($config);
+		}
+		
+		$this->startBrowserStack();
+		
 		return RemoteWebDriver::create(
-			$url ?? static::browserStackSeleniumUrl(),
-			static::browserStackSeleniumCaps($caps)
+			$this->browserStackSeleniumUrl(),
+			$this->browserStackSeleniumCaps()
 		);
+	}
+	
+	/**
+	 * Set the configuration for BrowserStack.
+	 *
+	 * @param array $config
+	 * @return $this
+	 */
+	public function setBrowserStackConfig(array $config)
+	{
+		$shortcuts = [
+			'username' => 'setBrowserStackUsername',
+			'key' => 'setBrowserStackKey',
+			'api_key' => 'setBrowserStackKey',
+			'local_config' => 'setBrowserStackLocalConfig',
+			'capabilities' => 'setBrowserStackCapabilities',
+		];
+		
+		foreach ($config as $key => $value) {
+			if (!isset($shortcuts[$key])) {
+				throw new \InvalidArgumentException("Unknown BrowserStack configuration: '$key'");
+			}
+			
+			$method = $shortcuts[$key];
+			$this->$method($value);
+		}
+		
+		return $this;
+	}
+	
+	/**
+	 * Set the BrowserStack username.
+	 *
+	 * @param string $username
+	 * @return $this
+	 */
+	public function setBrowserStackUsername(string $username)
+	{
+		$this->browserStackUsername = $username;
+		
+		return $this;
+	}
+	
+	/**
+	 * Set the BrowserStack API key.
+	 *
+	 * @param string $key
+	 * @return $this
+	 */
+	public function setBrowserStackKey(string $key)
+	{
+		$this->browserStackKey = $key;
+		
+		return $this;
+	}
+	
+	/**
+	 * Set the BrowserStackLocal configuration options.
+	 *
+	 * @param array $config
+	 * @return $this
+	 */
+	public function setBrowserStackLocalConfig(array $config)
+	{
+		$this->browserStackLocalConfig = $config;
+		
+		return $this;
+	}
+	
+	/**
+	 * Set the requested WebDriver capabilities.
+	 *
+	 * @param array $capabilities
+	 * @return $this
+	 */
+	public function setBrowserStackCapabilities(array $capabilities)
+	{
+		$this->browserStackCapabilities = $capabilities;
+		
+		return $this;
+	}
+	
+	/**
+	 * Start the BrowserStack process.
+	 */
+	protected function startBrowserStack()
+	{
+		if (!static::$browserStackProcess) {
+			static::$browserStackProcess = new Local();
+		}
+		
+		if (!static::$browserStackProcess->isRunning()) {
+			$this->startBrowserStackProcess();
+			
+			static::afterClass(function() {
+				static::stopBrowserStack();
+			});
+		}
+	}
+	
+	/**
+	 * Build the process to run the BrowserStack.
+	 */
+	protected function startBrowserStackProcess()
+	{
+		$config = $this->browserStackLocalConfig;
+		
+		if (!isset($config['key']) && !empty($this->browserStackKey)) {
+			$config['key'] = $this->browserStackKey;
+		}
+		
+		if (empty($config['key']) && !env('BROWSERSTACK_ACCESS_KEY')) {
+			throw new RuntimeException('A BrowserStack API key must be configured.');
+		}
+		
+		static::$browserStackProcess->start($config);
 	}
 	
 	/**
@@ -74,10 +203,14 @@ trait SupportsBrowserStack
 	 *
 	 * @return string
 	 */
-	protected static function browserStackSeleniumUrl() : string
+	protected function browserStackSeleniumUrl() : string
 	{
-		$username = env('BROWSERSTACK_USERNAME'); // FIXME
-		$key = env('BROWSERSTACK_ACCESS_KEY');
+		$username = $this->browserStackUsername;
+		$key = $this->browserStackKey ?? env('BROWSERSTACK_ACCESS_KEY');
+		
+		if (empty($key) || empty($username)) {
+			throw new RuntimeException('A BrowserStack API key & username must be configured.');
+		}
 		
 		return "https://{$username}:{$key}@hub-cloud.browserstack.com/wd/hub";
 	}
@@ -85,10 +218,9 @@ trait SupportsBrowserStack
 	/**
 	 * Build the BrowserStack Selenium capabilities.
 	 *
-	 * @param array|null $caps
 	 * @return array
 	 */
-	protected static function browserStackSeleniumCaps(array $caps = null) : array
+	protected function browserStackSeleniumCaps() : array
 	{
 		$defaults = [
 			'browserstack.local' => 'true',
@@ -96,28 +228,8 @@ trait SupportsBrowserStack
 		
 		return array_merge(
 			$defaults,
-			DesiredCapabilities::chrome(),
-			static::$browserStackCapabilities ?? [],
-			$caps ?? []
+			DesiredCapabilities::chrome()->toArray(),
+			$this->browserStackCapabilities
 		);
-	}
-	
-	/**
-	 * Build the process to run the BrowserStack.
-	 *
-	 * @param Local $process
-	 * @param string|null $key
-	 */
-	protected static function startBrowserStackProcess(Local $process, string $key = null)
-	{
-		$key = $key ?? env('BROWSERSTACK_ACCESS_KEY');
-		
-		if (empty($key)) {
-			throw new RuntimeException('BROWSERSTACK_ACCESS_KEY must be configured.');
-		}
-		
-		$process->start([
-			'key' => $key,
-		]);
 	}
 }
