@@ -209,11 +209,12 @@ trait SupportsBrowserStack
 	 */
 	protected function startBrowserStackProcess()
 	{
-		$config = $this->browserStackLocalConfig;
+		$defaults = [
+			'key' => $this->browserStackKey,
+			'logfile' => base_path('tests/Browser/console/browserstack.log'),
+		];
 		
-		if (!isset($config['key']) && !empty($this->browserStackKey)) {
-			$config['key'] = $this->browserStackKey;
-		}
+		$config = array_merge($defaults, $this->browserStackLocalConfig);
 		
 		if (empty($config['key']) && !env('BROWSERSTACK_ACCESS_KEY')) {
 			throw new RuntimeException('A BrowserStack API key must be configured.');

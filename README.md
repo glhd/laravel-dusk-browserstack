@@ -56,6 +56,10 @@ on different browsers/platforms/etc.
 
 ## Changelog
 
+### 1.0.2
+
+- Better default BrowserStack logfile
+
 ### 1.0.1
 
 - Loads configuration from `services.browserstack` by default for less boilerplate.
