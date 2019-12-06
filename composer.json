@@ -18,7 +18,7 @@
   "require": {
     "php": ">=7.0",
     "facebook/webdriver": "~1.0",
-    "illuminate/support": "~5.5",
+    "illuminate/support": "~5.5|^6.0",
     "browserstack/browserstack-local": "~1.1.0"
   },
   "require-dev": {
